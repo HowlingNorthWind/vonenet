@@ -1,12 +1,24 @@
 
-import os, argparse, time, subprocess, io, shlex, pickle, pprint
+from vonenet import get_model
+import torchvision
+import torch.utils.model_zoo
+import torch.nn as nn
+import torch
+import os
+import argparse
+import time
+import subprocess
+import io
+import shlex
+import pickle
+import pprint
 import pandas as pd
 import numpy as np
 import tqdm
 import fire
 
 parser = argparse.ArgumentParser(description='ImageNet Training')
-## General parameters
+# General parameters
 parser.add_argument('--in_path', required=True,
                     help='path to ImageNet folder that contains train and val folders')
 parser.add_argument('-o', '--output_path', default=None,
@@ -16,7 +28,7 @@ parser.add_argument('-restore_epoch', '--restore_epoch', default=0, type=int,
 parser.add_argument('-restore_path', '--restore_path', default=None, type=str,
                     help='path of folder containing specific epoch file for restoring model training')
 
-## Training parameters
+# Training parameters
 parser.add_argument('--ngpus', default=0, type=int,
                     help='number of GPUs to use; 0 if you want to run on CPU')
 parser.add_argument('-j', '--workers', default=20, type=int,
@@ -37,7 +49,7 @@ parser.add_argument('--momentum', default=.9, type=float, help='momentum')
 parser.add_argument('--weight_decay', default=1e-4, type=float,
                     help='weight decay ')
 
-## Model parameters
+# Model parameters
 parser.add_argument('--torch_seed', default=0, type=int,
                     help='seed for weights initializations and torch RNG')
 parser.add_argument('--model_arch', choices=['alexnet', 'resnet50', 'resnet50_at', 'cornets'], default='resnet50',
@@ -47,7 +59,7 @@ parser.add_argument('--normalization', choices=['vonenet', 'imagenet'], default=
 parser.add_argument('--visual_degrees', default=8, type=float,
                     help='Field-of-View of the model in visual degrees')
 
-## VOneBlock parameters
+# VOneBlock parameters
 # Gabor filter bank
 parser.add_argument('--stride', default=4, type=int,
                     help='stride for the first convolution (Gabor Filter Bank)')
@@ -99,7 +111,8 @@ def set_gpus(n=2):
                        for i in os.environ['CUDA_VISIBLE_DEVICES'].split(',')]
             gpus = gpus[gpus['index'].isin(visible)]
         gpus = gpus.sort_values(by='memory.free [MiB]', ascending=False)
-        os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'  # making sure GPUs are numbered the same way as in nvidia_smi
+        # making sure GPUs are numbered the same way as in nvidia_smi
+        os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
         os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(
             [str(i) for i in gpus['index'].iloc[:n]])
     else:
@@ -109,11 +122,6 @@ def set_gpus(n=2):
 if FLAGS.ngpus > 0:
     set_gpus(FLAGS.ngpus)
 
-import torch
-import torch.nn as nn
-import torch.utils.model_zoo
-import torchvision
-from vonenet import get_model
 
 torch.manual_seed(FLAGS.torch_seed)
 
@@ -173,12 +181,14 @@ def train(save_train_epochs=.2,  # how often save output during training
 
     if FLAGS.restore_epoch > 0:
         print('Restoring from previous...')
-        ckpt_data = torch.load(os.path.join(FLAGS.restore_path, f'epoch_{FLAGS.restore_epoch:02d}.pth.tar'))
+        ckpt_data = torch.load(os.path.join(
+            FLAGS.restore_path, f'epoch_{FLAGS.restore_epoch:02d}.pth.tar'))
         start_epoch = ckpt_data['epoch']
         print('Loaded epoch: '+str(start_epoch))
         model.load_state_dict(ckpt_data['state_dict'])
         trainer.optimizer.load_state_dict(ckpt_data['optimizer'])
-        results_old = pickle.load(open(os.path.join(FLAGS.restore_path, 'results.pkl'), 'rb'))
+        results_old = pickle.load(
+            open(os.path.join(FLAGS.restore_path, 'results.pkl'), 'rb'))
         for result in results_old:
             records.append(result)
 
@@ -226,7 +236,8 @@ def train(save_train_epochs=.2,  # how often save output during training
 
                 records.append(results)
                 if len(results) > 1:
-                    pickle.dump(records, open(os.path.join(FLAGS.output_path, 'results.pkl'), 'wb'))
+                    pickle.dump(records, open(os.path.join(
+                        FLAGS.output_path, 'results.pkl'), 'wb'))
 
                 ckpt_data = {}
                 ckpt_data['flags'] = FLAGS.__dict__.copy()
@@ -380,4 +391,5 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
-    fire.Fire(command=FIRE_FLAGS)
+    # fire.Fire(command=FIRE_FLAGS)
+    train()
